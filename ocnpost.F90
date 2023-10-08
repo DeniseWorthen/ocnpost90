@@ -7,7 +7,8 @@ program ocnpost
   implicit none
 
   character(len=240) :: filesrc, filedst, wgtsfile, fout
-  character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/climpara/S2S/FIX/fix_UFSp6/fix_reg2grb2/'
+  !character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/climpara/S2S/FIX/fix_UFSp6/fix_reg2grb2/'
+  character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/Denise.Worthen/grids-mesh-20231008/'
   ! source grid, tripole 1/4 deg, 40 vertical levels
   integer, parameter :: nxt = 1440, nyt = 1080, nlevs = 40
 
@@ -228,17 +229,18 @@ program ocnpost
      wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.bilinear.nc'
      if (debug) print '(a)','remapping 2D fields bilinear with '//trim(wgtsfile)
      call remap(trim(wgtsfile), dim2=nbilin2d, src_field=bilin2d, dst_field=rgb2d)
-     if (debug) call dumpnc('rgbilin2d.'//dstgrid//'.nc', 'rgbilin2d', dims=(/nxr,nyr/), nflds=nbilin2d, field=rgb2d)
+     if (debug) call dumpnc('rgbilin2d.'//trim(dstgrid)//'.nc', 'rgbilin2d', dims=(/nxr,nyr/), nflds=nbilin2d, field=rgb2d)
 
      wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.conserve.nc'
      if (debug) print '(a)','remapping 2D fields conserv with '//trim(wgtsfile)
      call remap(trim(wgtsfile), dim2=nconsd2d, src_field=consd2d, dst_field=rgc2d)
-     if (debug) call dumpnc('rgconsd2d.'//dstgrid//'.nc', 'rgconsd2d', dims=(/nxr,nyr/), nflds=nconsd2d, field=rgc2d)
+     if (debug) call dumpnc('rgconsd2d.'//trim(dstgrid)//'.nc', 'rgconsd2d', dims=(/nxr,nyr/), nflds=nconsd2d, field=rgc2d)
 
      wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.bilinear.nc'
      if (debug) print '(a)','remapping 3D fields bilinear with '//trim(wgtsfile)
      call remap(trim(wgtsfile), nk=nlevs, nflds=nbilin3d, src_field=bilin3d, dst_field=rgb3d)
-     if (debug) call dumpnc('rgbilin3d.'//dstgrid//'.nc', 'rgbilin3d', dims=(/nxr,nyr,nlevs/), nk=nlevs, nflds=nbilin3d, field=rgb3d)
+     if (debug) call dumpnc('rgbilin3d.'//trim(dstgrid)//'.nc', 'rgbilin3d', dims=(/nxr,nyr,nlevs/), nk=nlevs, &
+          nflds=nbilin3d, field=rgb3d)
 
      ! --------------------------------------------------------
      ! remap the source grid 3D mask to obtain the interpolation mask.
@@ -283,7 +285,7 @@ program ocnpost
      ! write the mapped fields
      ! --------------------------------------------------------
 
-     fout = 'test.'//dstgrid//'.nc'
+     fout = 'test.'//trim(dstgrid)//'.nc'
 
      rc = nf90_create(trim(fout), nf90_clobber, ncid)
      rc = nf90_def_dim(ncid, 'longitude', nxr, idimid)
