@@ -313,10 +313,8 @@ contains
     integer :: ncid, rc, id
     integer :: i,ii,jj
     integer :: n_a, n_b, n_s
-    ! not real, but get_var(ncid, id, col) seg faults if col is int
-    ! see https://github.com/Unidata/netcdf-fortran/issues/413
-    real(kind=4), allocatable, dimension(:) :: col, row
-    real(kind=8), allocatable, dimension(:) :: S
+    integer(kind=4), allocatable, dimension(:) :: col, row
+    real(kind=8), allocatable, dimension(:)    :: S
     character(len=20) :: subname = 'remap2d'
 
     if (debug)print '(a)','enter '//trim(subname)
@@ -331,8 +329,8 @@ contains
     rc = nf90_inq_dimid(ncid, 'n_b', id)
     rc = nf90_inquire_dimension(ncid, id, len=n_b)
 
-    allocate(col(1:n_s)); col = 0.0
-    allocate(row(1:n_s)); row = 0.0
+    allocate(col(1:n_s)); col = 0
+    allocate(row(1:n_s)); row = 0
     allocate(  S(1:n_s)); S = 0.0
 
     rc = nf90_inq_varid(ncid, 'col', id)
@@ -366,10 +364,8 @@ contains
     integer :: ncid, rc, id
     integer :: i,ii,jj
     integer :: n_a, n_b, n_s
-    ! not real, but get_var(ncid, id, col) seg faults if col is int
-    ! see https://github.com/Unidata/netcdf-fortran/issues/413
-    real(kind=4), allocatable, dimension(:) :: col, row
-    real(kind=8), allocatable, dimension(:) :: S
+    integer(kind=4), allocatable, dimension(:) :: col, row
+    real(kind=8), allocatable, dimension(:)    :: S
     character(len=20) :: subname = 'remap3d'
 
     if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
@@ -384,8 +380,8 @@ contains
     rc = nf90_inq_dimid(ncid, 'n_b', id)
     rc = nf90_inquire_dimension(ncid, id, len=n_b)
 
-    allocate(col(1:n_s)); col = 0.0
-    allocate(row(1:n_s)); row = 0.0
+    allocate(col(1:n_s)); col = 0
+    allocate(row(1:n_s)); row = 0
     allocate(  S(1:n_s)); S = 0.0
 
     rc = nf90_inq_varid(ncid, 'col', id)
@@ -419,10 +415,8 @@ contains
     integer :: ncid, rc, id
     integer :: i,ii,jj
     integer :: n_a, n_b, n_s
-    ! not real, but get_var(ncid, id, col) seg faults if col is int
-    ! see https://github.com/Unidata/netcdf-fortran/issues/413
-    real(kind=4), allocatable, dimension(:) :: col, row
-    real(kind=8), allocatable, dimension(:) :: S
+    integer(kind=4), allocatable, dimension(:) :: col, row
+    real(kind=8), allocatable, dimension(:)    :: S
     character(len=20) :: subname = 'remap4d'
 
     if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
@@ -437,8 +431,8 @@ contains
     rc = nf90_inq_dimid(ncid, 'n_b', id)
     rc = nf90_inquire_dimension(ncid, id, len=n_b)
 
-    allocate(col(1:n_s)); col = 0.0
-    allocate(row(1:n_s)); row = 0.0
+    allocate(col(1:n_s)); col = 0
+    allocate(row(1:n_s)); row = 0
     allocate(  S(1:n_s)); S = 0.0
 
     rc = nf90_inq_varid(ncid, 'col', id)

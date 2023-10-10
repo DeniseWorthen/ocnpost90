@@ -44,7 +44,7 @@ program ocnpost
   real, allocatable, dimension(:,:)   :: rgb2d, rgc2d
   real, allocatable, dimension(:,:,:) :: rgb3d
 
-  real(kind=8) :: timestamp
+  real(kind=8)       :: timestamp
   character(len= 40) :: timeunit, timecal
   character(len= 20) :: vname, vunit
   character(len=120) :: vlong
@@ -251,8 +251,12 @@ program ocnpost
      ! set interpolation mask missing on land, 1.0 on ocean on destination grids
      where(rgmask3d > 0.0)rgmask3d = vfill
      where(rgmask3d /= vfill)rgmask3d = 1.0
+     ! out1d contains dstlat
+     do n = 1,nlevs
+        where(out1d(:) <= -79.75)rgmask3d(:,n) = vfill
+     end do
      if (debug) print '(a,2g14.7)',' mask min/max on destination grid ',minval(rgmask3d),maxval(rgmask3d)
-     if (debug) call dumpnc('rgmask3d.nc', 'rgmask3d', dims=(/nxr,nyr,nlevs/), field=rgmask3d)
+     if (debug) call dumpnc('rgmask3d.'//trim(dstgrid)//'.nc', 'rgmask3d', dims=(/nxr,nyr,nlevs/), field=rgmask3d)
 
      ! --------------------------------------------------------
      ! mask the mapped fields
@@ -358,18 +362,21 @@ program ocnpost
 
      do n = 1,nbilin2d
         out2d(:,:) = reshape(rgb2d(:,n), (/nxr,nyr/))
+        out2d(:,nyr) = vfill
         vname = trim(b2d(n)%output_var_name)
         rc = nf90_inq_varid(ncid, vname, varid)
         rc = nf90_put_var(ncid,   varid, out2d)
      end do
      do n = 1,nconsd2d
         out2d(:,:) = reshape(rgc2d(:,n), (/nxr,nyr/))
+        out2d(:,nyr) = vfill
         vname = trim(c2d(n)%output_var_name)
         rc = nf90_inq_varid(ncid, vname, varid)
         rc = nf90_put_var(ncid,   varid, out2d)
      end do
      do n = 1,nbilin3d
         out3d(:,:,:) = reshape(rgb3d(:,:,n), (/nxr,nyr,nlevs/))
+        out3d(:,nyr,:) = vfill
         vname = trim(b3d(n)%output_var_name)
         rc = nf90_inq_varid(ncid, vname, varid)
         rc = nf90_put_var(ncid,   varid, out3d)
