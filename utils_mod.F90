@@ -315,7 +315,7 @@ contains
     integer :: n_a, n_b, n_s
     integer(kind=4), allocatable, dimension(:) :: col, row
     real(kind=8), allocatable, dimension(:)    :: S
-    character(len=20) :: subname = 'remap2d'
+    character(len=20) :: subname = 'remap1d'
 
     if (debug)print '(a)','enter '//trim(subname)
 
@@ -366,7 +366,7 @@ contains
     integer :: n_a, n_b, n_s
     integer(kind=4), allocatable, dimension(:) :: col, row
     real(kind=8), allocatable, dimension(:)    :: S
-    character(len=20) :: subname = 'remap3d'
+    character(len=20) :: subname = 'remap2d'
 
     if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
 
@@ -417,7 +417,7 @@ contains
     integer :: n_a, n_b, n_s
     integer(kind=4), allocatable, dimension(:) :: col, row
     real(kind=8), allocatable, dimension(:)    :: S
-    character(len=20) :: subname = 'remap4d'
+    character(len=20) :: subname = 'remap3d'
 
     if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
 
