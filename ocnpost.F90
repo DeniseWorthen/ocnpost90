@@ -8,7 +8,9 @@ program ocnpost
 
   character(len=240) :: filesrc, filedst, wgtsfile, fout
   !character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/climpara/S2S/FIX/fix_UFSp6/fix_reg2grb2/'
-  character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/Denise.Worthen/grids-mesh-20231008/'
+  !character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/Denise.Worthen/grids-mesh-20231008/'
+  ! generated weights from cpld_gridgen
+  character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/stmp4/Denise.Worthen/CPLD_GRIDGEN/'
   ! source grid, tripole 1/4 deg, 40 vertical levels
   integer, parameter :: nxt = 1440, nyt = 1080, nlevs = 40
 
