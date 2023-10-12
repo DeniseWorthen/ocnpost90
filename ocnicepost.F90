@@ -401,49 +401,49 @@ program ocnicepost
      if (do_ocnpost) then
         rc = nf90_def_dim(ncid,  'z_l',  nlevs  , kdimid)
         rc = nf90_def_dim(ncid,  'z_i',  nlevs+1, edimid)
-     rc = nf90_def_var(ncid, 'z_l', nf90_float,  (/kdimid/), varid)
-     rc = nf90_put_att(ncid, varid,    'units', 'm')
-     rc = nf90_put_att(ncid, varid, 'positive', 'down')
-     rc = nf90_def_var(ncid, 'z_i', nf90_float,  (/edimid/), varid)
-     rc = nf90_put_att(ncid, varid,    'units', 'm')
-     rc = nf90_put_att(ncid, varid, 'positive', 'down')
+        rc = nf90_def_var(ncid, 'z_l', nf90_float,  (/kdimid/), varid)
+        rc = nf90_put_att(ncid, varid,    'units', 'm')
+        rc = nf90_put_att(ncid, varid, 'positive', 'down')
+        rc = nf90_def_var(ncid, 'z_i', nf90_float,  (/edimid/), varid)
+        rc = nf90_put_att(ncid, varid,    'units', 'm')
+        rc = nf90_put_att(ncid, varid, 'positive', 'down')
      end if
 
      if (allocated(b2d)) then
-     do n = 1,nbilin2d
-        vname = trim(b2d(n)%output_var_name)
-        vunit = trim(b2d(n)%units)
-        vlong = trim(b2d(n)%long_name)
-        vfill = b2d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nbilin2d
+           vname = trim(b2d(n)%output_var_name)
+           vunit = trim(b2d(n)%units)
+           vlong = trim(b2d(n)%long_name)
+           vfill = b2d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      if (allocated(c2d)) then
-     do n = 1,nconsd2d
-        vname = trim(c2d(n)%output_var_name)
-        vunit = trim(c2d(n)%units)
-        vlong = trim(c2d(n)%long_name)
-        vfill = c2d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nconsd2d
+           vname = trim(c2d(n)%output_var_name)
+           vunit = trim(c2d(n)%units)
+           vlong = trim(c2d(n)%long_name)
+           vfill = c2d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      if (allocated(b3d)) then
-     do n = 1,nbilin3d
-        vname = trim(b3d(n)%output_var_name)
-        vunit = trim(b3d(n)%units)
-        vlong = trim(b3d(n)%long_name)
-        vfill = b3d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,kdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nbilin3d
+           vname = trim(b3d(n)%output_var_name)
+           vunit = trim(b3d(n)%units)
+           vlong = trim(b3d(n)%long_name)
+           vfill = b3d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,kdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      rc = nf90_enddef(ncid)
 
@@ -463,31 +463,31 @@ program ocnicepost
         rc = nf90_put_var(ncid, varid, z_i)
      end if
      if (allocated(rgb2d)) then
-     do n = 1,nbilin2d
-        out2d(:,:) = reshape(rgb2d(:,n), (/nxr,nyr/))
-        out2d(:,nyr) = vfill
-        vname = trim(b2d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out2d)
-     end do
+        do n = 1,nbilin2d
+           out2d(:,:) = reshape(rgb2d(:,n), (/nxr,nyr/))
+           out2d(:,nyr) = vfill
+           vname = trim(b2d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out2d)
+        end do
      end if
      if (allocated(rgc2d)) then
-     do n = 1,nconsd2d
-        out2d(:,:) = reshape(rgc2d(:,n), (/nxr,nyr/))
-        out2d(:,nyr) = vfill
-        vname = trim(c2d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out2d)
-     end do
+        do n = 1,nconsd2d
+           out2d(:,:) = reshape(rgc2d(:,n), (/nxr,nyr/))
+           out2d(:,nyr) = vfill
+           vname = trim(c2d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out2d)
+        end do
      end if
      if (allocated(rgb3d)) then
-     do n = 1,nbilin3d
-        out3d(:,:,:) = reshape(rgb3d(:,:,n), (/nxr,nyr,nlevs/))
-        out3d(:,nyr,:) = vfill
-        vname = trim(b3d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out3d)
-     end do
+        do n = 1,nbilin3d
+           out3d(:,:,:) = reshape(rgb3d(:,:,n), (/nxr,nyr,nlevs/))
+           out3d(:,nyr,:) = vfill
+           vname = trim(b3d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out3d)
+        end do
      end if
      rc = nf90_close(ncid)
 
