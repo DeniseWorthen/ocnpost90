@@ -1,15 +1,14 @@
 program ocnicepost
 
-  use utils_mod
+  use utils_mod, only : debug, logunit, getfield, packarrays, remap, dumpnc
   use outputvars
   use netcdf
 
   implicit none
 
-  character(len=240) :: filesrc, filedst, wgtsfile, fout
-  !character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/climate/climpara/S2S/FIX/fix_UFSp6/fix_reg2grb2/'
-  !generated weights from cpld_gridgen
-  character(len=120) :: wgtsdir = '/scratch1/NCEPDEV/stmp4/Denise.Worthen/CPLD_GRIDGEN/'
+  character(len= 20) :: fnml, ftype
+  character(len=120) :: wgtsdir
+  character(len=120) :: input_file, wgtsfile, output_file
 
   ! source grid, tripole 1/4 deg, 40 vertical levels
   integer, parameter :: nxt = 1440, nyt = 1080, nlevs = 40
@@ -56,24 +55,46 @@ program ocnicepost
 
   real    :: vfill
   integer :: nd, nxr, nyr
-  integer :: i,j,k,n,nn,nvalid
+  integer :: i,j,k,n,nn,nvalid,iounit
   integer :: rc,ncid,varid,dimid
   integer :: nbilin2d,nbilin3d,nconsd2d
   integer :: idimid,jdimid,kdimid,edimid,timid
   integer :: idx1,idx2,idx3
+  logical :: do_ocnpost
 
-  logical :: debug = .true.
-  logical :: do_ocnpost = .false.
+  namelist /ocnicepost_nml/ ftype, wgtsdir, debug
 
-  ! initialize the variable type
-  if (do_ocnpost) then
-     call ocnvars_typedefine
-     filesrc = '/scratch1/NCEPDEV/climate/Jiande.Wang/For-others/For-Eric/ocn2013100106.01.2013100100.nc'
-  else
-     call icevars_typedefine
-     filesrc = '/scratch1/NCEPDEV/climate/Jiande.Wang/For-others/For-Eric/ice2013100106.01.2013100100.nc'
+  ! --------------------------------------------------------
+  ! read the name list
+  ! --------------------------------------------------------
+
+  fnml = 'ocnicepost.nml'
+  inquire (file=trim(fnml), iostat=rc)
+  if (rc /= 0) then
+     write (6, '(3a)') 'Error: input file "', trim(fnml), '" does not exist.'
+     stop
   end if
-  if (debug) print '(a)',' file: '//trim(filesrc)
+
+  ! Open and read Namelist file.
+  open (action='read', file=trim(fnml), iostat=rc, newunit=iounit)
+  read (nml=ocnicepost_nml, iostat=rc, unit=iounit)
+  if (rc /= 0) then
+     write (6, '(a)') 'Error: invalid Namelist format.'
+  end if
+  close (iounit)
+
+  ! initialize the source file type and variables
+  if (trim(ftype) == 'ocean') then
+     do_ocnpost = .true.
+     call ocnvars_typedefine
+  else
+     do_ocnpost = .false.
+     call icevars_typedefine
+  end if
+  input_file = trim(ftype)//'.nc'
+
+  open(newunit=logunit, file=trim(ftype)//'.post.log',form='formatted')
+  if (debug) write(logunit, '(a)')'input file: '//trim(input_file)
 
   ! --------------------------------------------------------
   ! read the source file and obtain the units and long name,
@@ -81,7 +102,7 @@ program ocnicepost
   ! --------------------------------------------------------
 
   nvalid = 0
-  rc = nf90_open(trim(filesrc), nf90_nowrite, ncid)
+  rc = nf90_open(trim(input_file), nf90_nowrite, ncid)
   do i = 1,maxvars
      if (len_trim(outvars(i)%input_var_name) > 0 ) then
         rc = nf90_inq_varid(ncid, trim(outvars(i)%input_var_name), varid)
@@ -108,10 +129,10 @@ program ocnicepost
      rc = nf90_get_var(ncid, varid, z_i)
      rc = nf90_close(ncid)
      ! rotation angles
-     call getfield(trim(filesrc), 'cos_rot', dims=(/nxt,nyt/), field=cosrot)
-     call getfield(trim(filesrc), 'sin_rot', dims=(/nxt,nyt/), field=sinrot)
+     call getfield(trim(input_file), 'cos_rot', dims=(/nxt,nyt/), field=cosrot)
+     call getfield(trim(input_file), 'sin_rot', dims=(/nxt,nyt/), field=sinrot)
   else
-     call getfield(trim(filesrc),  'ANGLET', dims=(/nxt,nyt/), field=anglet)
+     call getfield(trim(input_file),  'ANGLET', dims=(/nxt,nyt/), field=anglet)
      cosrot =  cos(anglet)
      sinrot = -sin(anglet)
   end if
@@ -125,7 +146,7 @@ program ocnicepost
   ! --------------------------------------------------------
 
   if (do_ocnpost) then
-     rc = nf90_open(trim(filesrc), nf90_nowrite, ncid)
+     rc = nf90_open(trim(input_file), nf90_nowrite, ncid)
      ! 3D temp to use as mask, obtain directly from file to preserve vfill
      rc = nf90_inq_varid(ncid, 'temp', varid)
      rc = nf90_get_var(ncid, varid, tmp3d)
@@ -135,15 +156,21 @@ program ocnicepost
      ! set mask3d to 0 on ocean, 1 on land on source grid
      where(mask3d .eq. vfill)mask3d = 1.0
      where(mask3d .ne.   1.0)mask3d = 0.0
-     if (debug) print '(a,2g14.7)',' mask3d min/max on source grid ',minval(mask3d),maxval(mask3d)
-     if (debug) call dumpnc('ocn.mask3d.nc', 'mask3d', dims=(/nxt,nyt,nlevs/), field=mask3d)
+
+     if (debug) then
+        write(logunit,'(a,2g14.4)')'mask3d min/max on source grid ',minval(mask3d),maxval(mask3d)
+        call dumpnc(trim(ftype)//'.mask3d.nc', 'mask3d', dims=(/nxt,nyt,nlevs/), field=mask3d)
+     end if
   else
-     call getfield(trim(filesrc),  'tmask', dims=(/nxt,nyt/), field=mask2d)
+     call getfield(trim(input_file),  'tmask', dims=(/nxt,nyt/), field=mask2d)
      ! set mask2d to 0 on ocean, 1 on land on source grid
      mask2d = mask2d - 1.0
      where(mask2d .eq. -1.0)mask2d = 1.0
-     if (debug) print '(a,2g14.7)',' mask2d min/max on source grid ',minval(mask2d),maxval(mask2d)
-     if (debug) call dumpnc('ice.mask2d.nc', 'mask2d', dims=(/nxt,nyt/), field=mask2d)
+
+     if (debug) then
+        write(logunit,'(a,2g14.4)')'mask2d min/max on source grid ',minval(mask2d),maxval(mask2d)
+        call dumpnc(trim(ftype)//'.mask2d.nc', 'mask2d', dims=(/nxt,nyt/), field=mask2d)
+     end if
   end if
 
   ! --------------------------------------------------------
@@ -159,23 +186,23 @@ program ocnicepost
      end if
      if (trim(outvars(n)%var_remapmethod)  == 'conserve')nconsd2d = nconsd2d + 1  !no 3d variables w/ conservative mapping
   end do
-  if (debug) print '(3(a,i4))','bilin 2d ',nbilin2d,' bilin 3d ',nbilin3d,' conserv 2d ',nconsd2d
+  if (debug) write(logunit,'(3(a,i4))')'bilin 2d ',nbilin2d,' bilin 3d ',nbilin3d,' conserv 2d ',nconsd2d
 
   ! initialization required when compiled with sinit_arrays=nan
   if (nbilin2d > 0) then
      allocate(bilin2d(nxt*nyt,nbilin2d)); bilin2d = 0.0
      allocate(b2d(1:nbilin2d))
-     if (debug) print '(a)',' allocate bilin2d fields and types '
+     if (debug) write(logunit,'(a)')'allocate bilin2d fields and types '
   end if
   if (nconsd2d > 0) then
      allocate(consd2d(nxt*nyt,nconsd2d)); consd2d = 0.0
      allocate(c2d(1:nconsd2d))
-     if (debug) print '(a)',' allocate consd2d fields and types '
+     if (debug) write(logunit,'(a)')'allocate consd2d fields and types '
   end if
   if (nbilin3d > 0) then
      allocate(bilin3d(nxt*nyt,nlevs,nbilin3d)); bilin3d = 0.0
      allocate(b3d(1:nbilin3d))
-     if (debug) print '(a)',' allocate bilin3d fields and types '
+     if (debug) write(logunit,'(a)')'allocate bilin3d fields and types '
   end if
 
   ! --------------------------------------------------------
@@ -197,48 +224,57 @@ program ocnicepost
      end if
   end do
 
-  if (debug) then
-     print *,'2D fields mapped bilin'
-     do n = 1,nbilin2d
-        print '(i6,4(a,a))',n,'  ',trim(b2d(n)%input_var_name),'  ',trim(b2d(n)%var_grid), &
-             '  ',trim(b2d(n)%var_pair),'  ', trim(b2d(n)%var_pair_grid)
-     end do
-     print *,'3D fields mapped bilin'
-     do n = 1,nbilin3d
-        print '(i6,4(a,a))',n,'  ',trim(b3d(n)%input_var_name),'  ',trim(b3d(n)%var_grid), &
-             '  ',trim(b3d(n)%var_pair),'  ', trim(b3d(n)%var_pair_grid)
-     end do
-     print *,'2D fields mapped conserv'
-     do n = 1,nconsd2d
-        print '(i6,4(a,a))',n,'  ',trim(c2d(n)%input_var_name),'  ',trim(c2d(n)%var_grid), &
-             '  ',trim(c2d(n)%var_pair),'  ', trim(c2d(n)%var_pair_grid)
-     end do
-  end if
-
   ! --------------------------------------------------------
   ! create packed arrays for mapping
   ! --------------------------------------------------------
 
   ! 2D bilin
   if (allocated(bilin2d)) then
-     call packarrays(trim(filesrc), trim(wgtsdir), cosrot, sinrot, b2d, dims=(/nxt,nyt/),              &
+     call packarrays(trim(input_file), trim(wgtsdir), cosrot, sinrot, b2d, dims=(/nxt,nyt/),       &
           nflds=nbilin2d, fields=bilin2d)
-     if (debug) call dumpnc('bilin2d.nc', 'bilin2d', dims=(/nxt,nyt/), nflds=nbilin2d, field=bilin2d)
+
+     if (debug) then
+        write(logunit,'(/,a)')'2D fields mapped bilin, packed field min/max values'
+        do n = 1,nbilin2d
+           write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(b2d(n)%input_var_name),'  ',             &
+                trim(b2d(n)%var_grid),'  ',trim(b2d(n)%var_pair),'  ', trim(b2d(n)%var_pair_grid), &
+                minval(bilin2d(:,n)), maxval(bilin2d(:,n))
+        end do
+        call dumpnc(trim(ftype)//'.bilin2d.nc', 'bilin2d', dims=(/nxt,nyt/), nflds=nbilin2d, field=bilin2d)
+     end if
   end if
 
   ! 2D conserv
   if (allocated(consd2d)) then
-     call packarrays(trim(filesrc), trim(wgtsdir), cosrot, sinrot, c2d, dims=(/nxt,nyt/),              &
+     call packarrays(trim(input_file), trim(wgtsdir), cosrot, sinrot, c2d, dims=(/nxt,nyt/),       &
           nflds=nconsd2d, fields=consd2d)
-     if (debug) call dumpnc('consd2d.nc', 'consd2d', dims=(/nxt,nyt/), nflds=nconsd2d, field=consd2d)
+
+     if (debug) then
+        write(logunit,'(a)')'2D fields mapped conserv, packed field min/max values'
+        do n = 1,nconsd2d
+           write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(c2d(n)%input_var_name),'  ',             &
+                trim(c2d(n)%var_grid),'  ',trim(c2d(n)%var_pair),'  ', trim(c2d(n)%var_pair_grid), &
+                minval(consd2d(:,n)), maxval(consd2d(:,n))
+        end do
+        call dumpnc(trim(ftype)//'.consd2d.nc', 'consd2d', dims=(/nxt,nyt/), nflds=nconsd2d, field=consd2d)
+     end if
   end if
 
   ! 3D bilin
   if (allocated(bilin3d))then
-     call packarrays(trim(filesrc), trim(wgtsdir), cosrot, sinrot, b3d, dims=(/nxt,nyt,nlevs/),        &
+     call packarrays(trim(input_file), trim(wgtsdir), cosrot, sinrot, b3d, dims=(/nxt,nyt,nlevs/), &
           nflds=nbilin3d, fields=bilin3d)
-     if (debug) call dumpnc('bilin3d.nc', 'bilin3d', dims=(/nxt,nyt,nlevs/), nk=nlevs, nflds=nbilin3d, &
-          field=bilin3d)
+
+     if (debug) then
+        write(logunit,'(a)')'3D fields mapped bilin, packed field min/max values'
+        do n = 1,nbilin3d
+           write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(b3d(n)%input_var_name),'  ',             &
+                trim(b3d(n)%var_grid),'  ',trim(b3d(n)%var_pair),'  ', trim(b3d(n)%var_pair_grid), &
+                minval(bilin3d(:,:,n)), maxval(bilin3d(:,:,n))
+        end do
+        call dumpnc(trim(ftype)//'.bilin3d.nc', 'bilin3d', dims=(/nxt,nyt,nlevs/), nk=nlevs,       &
+             nflds=nbilin3d, field=bilin3d)
+     end if
   end if
 
   ! --------------------------------------------------------
@@ -282,26 +318,53 @@ program ocnicepost
 
      if (allocated(bilin2d)) then
         wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.bilinear.nc'
-        if (debug) print '(a)','remapping 2D fields bilinear with '//trim(wgtsfile)
+        if (debug) write(logunit,'(/,a)')'remapping 2D fields bilinear with '//trim(wgtsfile)
         call remap(trim(wgtsfile), dim2=nbilin2d, src_field=bilin2d, dst_field=rgb2d)
-        if (debug) call dumpnc('rgbilin2d.'//trim(dstgrid)//'.nc', 'rgbilin2d', dims=(/nxr,nyr/),       &
-             nflds=nbilin2d, field=rgb2d)
+
+        if (debug) then
+           write(logunit,'(a)')'2D fields mapped bilin, mapped field min/max values'
+           do n = 1,nbilin2d
+              write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(b2d(n)%input_var_name),'  ',                     &
+                   trim(b2d(n)%var_grid),'  ',trim(b2d(n)%var_pair),'  ', trim(b2d(n)%var_pair_grid),         &
+                   minval(rgb2d(:,n)), maxval(rgb2d(:,n))
+           end do
+           call dumpnc(trim(ftype)//'.rgbilin2d.'//trim(dstgrid)//'.nc', 'rgbilin2d', dims=(/nxr,nyr/),       &
+                nflds=nbilin2d, field=rgb2d)
+        end if
      end if
 
      if (allocated(consd2d)) then
         wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.conserve.nc'
-        if (debug) print '(a)','remapping 2D fields conserv with '//trim(wgtsfile)
+        if (debug) write(logunit,'(a)')'remapping 2D fields conserv with '//trim(wgtsfile)
         call remap(trim(wgtsfile), dim2=nconsd2d, src_field=consd2d, dst_field=rgc2d)
-        if (debug) call dumpnc('rgconsd2d.'//trim(dstgrid)//'.nc', 'rgconsd2d', dims=(/nxr,nyr/),       &
-             nflds=nconsd2d, field=rgc2d)
+
+        if (debug) then
+           write(logunit,'(a)')'2D fields mapped conserv, mapped field min/max values'
+           do n = 1,nconsd2d
+              write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(c2d(n)%input_var_name),'  ',                     &
+                   trim(c2d(n)%var_grid),'  ',trim(c2d(n)%var_pair),'  ', trim(c2d(n)%var_pair_grid),         &
+                   minval(rgc2d(:,n)), maxval(rgc2d(:,n))
+           end do
+           call dumpnc(trim(ftype)//'.rgconsd2d.'//trim(dstgrid)//'.nc', 'rgconsd2d', dims=(/nxr,nyr/),       &
+                nflds=nconsd2d, field=rgc2d)
+        end if
      end if
 
      if (allocated(bilin3d)) then
         wgtsfile = trim(wgtsdir)//'tripole.mx025.Ct.to.rect.'//trim(dstgrid)//'.bilinear.nc'
-        if (debug) print '(a)','remapping 3D fields bilinear with '//trim(wgtsfile)
+        if (debug) write(logunit,'(a)')'remapping 3D fields bilinear with '//trim(wgtsfile)
         call remap(trim(wgtsfile), nk=nlevs, nflds=nbilin3d, src_field=bilin3d, dst_field=rgb3d)
-        if (debug) call dumpnc('rgbilin3d.'//trim(dstgrid)//'.nc', 'rgbilin3d', dims=(/nxr,nyr,nlevs/), &
-             nk=nlevs, nflds=nbilin3d, field=rgb3d)
+
+        if (debug) then
+           write(logunit,'(a)')'3D fields mapped bilin, mapped field  min/max values'
+           do n = 1,nbilin3d
+              write(logunit,'(i6,4(a,a),2g14.4)')n,'  ',trim(b3d(n)%input_var_name),'  ',                     &
+                   trim(b3d(n)%var_grid),'  ',trim(b3d(n)%var_pair),'  ', trim(b3d(n)%var_pair_grid),         &
+                   minval(rgb3d(:,:,n)), maxval(rgb3d(:,:,n))
+           end do
+           call dumpnc(trim(ftype)//'.rgbilin3d.'//trim(dstgrid)//'.nc', 'rgbilin3d', dims=(/nxr,nyr,nlevs/), &
+                nk=nlevs, nflds=nbilin3d, field=rgb3d)
+        end if
      end if
 
      ! --------------------------------------------------------
@@ -318,9 +381,12 @@ program ocnicepost
         do n = 1,nlevs
            where(out1d(:) <= -79.75)rgmask3d(:,n) = vfill
         end do
-        if (debug) print '(a,2g14.7)',' mask min/max on destination grid ',minval(rgmask3d),maxval(rgmask3d)
-        if (debug) call dumpnc('ocn.rgmask3d.'//trim(dstgrid)//'.nc', 'rgmask3d', dims=(/nxr,nyr,nlevs/), &
-             field=rgmask3d)
+
+        if (debug) then
+           write(logunit,'(a,2g14.4)')'mask min/max on destination grid ',minval(rgmask3d),maxval(rgmask3d)
+           call dumpnc(trim(ftype)//'.rgmask3d.'//trim(dstgrid)//'.nc', 'rgmask3d', dims=(/nxr,nyr,nlevs/), &
+                field=rgmask3d)
+        end if
      else
         call remap(trim(wgtsfile), src_field=mask2d, dst_field=rgmask2d)
         ! set interpolation mask missing on land, 1.0 on ocean on destination grids
@@ -328,9 +394,12 @@ program ocnicepost
         where(rgmask2d /= vfill)rgmask2d = 1.0
         ! out1d contains dstlat
         where(out1d(:) <= -79.75)rgmask2d(:) = vfill
-        if (debug) print '(a,2g14.7)',' mask min/max on destination grid ',minval(rgmask2d),maxval(rgmask2d)
-        if (debug) call dumpnc('ice.rgmask2d.'//trim(dstgrid)//'.nc', 'rgmask2d', dims=(/nxr,nyr/),       &
-             field=rgmask2d)
+
+        if (debug) then
+           write(logunit,'(a,2g14.4)')'mask min/max on destination grid ',minval(rgmask2d),maxval(rgmask2d)
+           call dumpnc(trim(ftype)//'.rgmask2d.'//trim(dstgrid)//'.nc', 'rgmask2d', dims=(/nxr,nyr/),       &
+                field=rgmask2d)
+        end if
      end if
 
      ! --------------------------------------------------------
@@ -358,7 +427,6 @@ program ocnicepost
            where(rgmask3d(:,:) .eq. vfill)rgb3d(:,:,n) = vfill
         end if
      end do
-
      ! --------------------------------------------------------
      ! replace model native speed field with a value calculated
      ! from remapped ssu,ssv
@@ -378,12 +446,10 @@ program ocnicepost
      ! write the mapped fields
      ! --------------------------------------------------------
 
-     if (do_ocnpost) then
-        fout = 'ocn.test.'//trim(dstgrid)//'.nc'
-     else
-        fout = 'ice.test.'//trim(dstgrid)//'.nc'
-     end if
-     rc = nf90_create(trim(fout), nf90_clobber, ncid)
+     output_file = trim(ftype)//'.'//trim(dstgrid)//'.nc'
+     if (debug) write(logunit, '(a)')'output file: '//trim(output_file)
+
+     rc = nf90_create(trim(output_file), nf90_clobber, ncid)
      rc = nf90_def_dim(ncid, 'longitude', nxr, idimid)
      rc = nf90_def_dim(ncid,  'latitude', nyr, jdimid)
      rc = nf90_def_dim(ncid, 'time', nf90_unlimited, timid)
@@ -401,49 +467,49 @@ program ocnicepost
      if (do_ocnpost) then
         rc = nf90_def_dim(ncid,  'z_l',  nlevs  , kdimid)
         rc = nf90_def_dim(ncid,  'z_i',  nlevs+1, edimid)
-     rc = nf90_def_var(ncid, 'z_l', nf90_float,  (/kdimid/), varid)
-     rc = nf90_put_att(ncid, varid,    'units', 'm')
-     rc = nf90_put_att(ncid, varid, 'positive', 'down')
-     rc = nf90_def_var(ncid, 'z_i', nf90_float,  (/edimid/), varid)
-     rc = nf90_put_att(ncid, varid,    'units', 'm')
-     rc = nf90_put_att(ncid, varid, 'positive', 'down')
+        rc = nf90_def_var(ncid, 'z_l', nf90_float,  (/kdimid/), varid)
+        rc = nf90_put_att(ncid, varid,    'units', 'm')
+        rc = nf90_put_att(ncid, varid, 'positive', 'down')
+        rc = nf90_def_var(ncid, 'z_i', nf90_float,  (/edimid/), varid)
+        rc = nf90_put_att(ncid, varid,    'units', 'm')
+        rc = nf90_put_att(ncid, varid, 'positive', 'down')
      end if
 
      if (allocated(b2d)) then
-     do n = 1,nbilin2d
-        vname = trim(b2d(n)%output_var_name)
-        vunit = trim(b2d(n)%units)
-        vlong = trim(b2d(n)%long_name)
-        vfill = b2d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nbilin2d
+           vname = trim(b2d(n)%output_var_name)
+           vunit = trim(b2d(n)%units)
+           vlong = trim(b2d(n)%long_name)
+           vfill = b2d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      if (allocated(c2d)) then
-     do n = 1,nconsd2d
-        vname = trim(c2d(n)%output_var_name)
-        vunit = trim(c2d(n)%units)
-        vlong = trim(c2d(n)%long_name)
-        vfill = c2d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nconsd2d
+           vname = trim(c2d(n)%output_var_name)
+           vunit = trim(c2d(n)%units)
+           vlong = trim(c2d(n)%long_name)
+           vfill = c2d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      if (allocated(b3d)) then
-     do n = 1,nbilin3d
-        vname = trim(b3d(n)%output_var_name)
-        vunit = trim(b3d(n)%units)
-        vlong = trim(b3d(n)%long_name)
-        vfill = b3d(n)%var_fillvalue
-        rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,kdimid,timid/), varid)
-        rc = nf90_put_att(ncid, varid,      'units', vunit)
-        rc = nf90_put_att(ncid, varid,  'long_name', vlong)
-        rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
-     enddo
+        do n = 1,nbilin3d
+           vname = trim(b3d(n)%output_var_name)
+           vunit = trim(b3d(n)%units)
+           vlong = trim(b3d(n)%long_name)
+           vfill = b3d(n)%var_fillvalue
+           rc = nf90_def_var(ncid, vname, nf90_float, (/idimid,jdimid,kdimid,timid/), varid)
+           rc = nf90_put_att(ncid, varid,      'units', vunit)
+           rc = nf90_put_att(ncid, varid,  'long_name', vlong)
+           rc = nf90_put_att(ncid, varid, '_FillValue', vfill)
+        enddo
      end if
      rc = nf90_enddef(ncid)
 
@@ -463,31 +529,31 @@ program ocnicepost
         rc = nf90_put_var(ncid, varid, z_i)
      end if
      if (allocated(rgb2d)) then
-     do n = 1,nbilin2d
-        out2d(:,:) = reshape(rgb2d(:,n), (/nxr,nyr/))
-        out2d(:,nyr) = vfill
-        vname = trim(b2d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out2d)
-     end do
+        do n = 1,nbilin2d
+           out2d(:,:) = reshape(rgb2d(:,n), (/nxr,nyr/))
+           out2d(:,nyr) = vfill
+           vname = trim(b2d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out2d)
+        end do
      end if
      if (allocated(rgc2d)) then
-     do n = 1,nconsd2d
-        out2d(:,:) = reshape(rgc2d(:,n), (/nxr,nyr/))
-        out2d(:,nyr) = vfill
-        vname = trim(c2d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out2d)
-     end do
+        do n = 1,nconsd2d
+           out2d(:,:) = reshape(rgc2d(:,n), (/nxr,nyr/))
+           out2d(:,nyr) = vfill
+           vname = trim(c2d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out2d)
+        end do
      end if
      if (allocated(rgb3d)) then
-     do n = 1,nbilin3d
-        out3d(:,:,:) = reshape(rgb3d(:,:,n), (/nxr,nyr,nlevs/))
-        out3d(:,nyr,:) = vfill
-        vname = trim(b3d(n)%output_var_name)
-        rc = nf90_inq_varid(ncid, vname, varid)
-        rc = nf90_put_var(ncid,   varid, out3d)
-     end do
+        do n = 1,nbilin3d
+           out3d(:,:,:) = reshape(rgb3d(:,:,n), (/nxr,nyr,nlevs/))
+           out3d(:,nyr,:) = vfill
+           vname = trim(b3d(n)%output_var_name)
+           rc = nf90_inq_varid(ncid, vname, varid)
+           rc = nf90_put_var(ncid,   varid, out3d)
+        end do
      end if
      rc = nf90_close(ncid)
 
@@ -506,6 +572,6 @@ program ocnicepost
      if (allocated(rgmask3d)) deallocate(rgmask3d)
 
   end do !nd
-  print *,'all done!'
+  write(logunit,'(a)')'all done!'
 
 end program ocnicepost
