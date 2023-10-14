@@ -7,6 +7,9 @@ module utils_mod
 
   private
 
+  logical, public :: debug
+  integer, public :: logunit
+
   interface getfield
      module procedure getfield2d
      module procedure getfield3d
@@ -40,9 +43,6 @@ module utils_mod
   public remap
   public dumpnc
 
-  logical :: debug = .true.
-  !logical :: debug = .false.
-
 contains
 
   !----------------------------------------------------------
@@ -64,7 +64,7 @@ contains
 
     fields=0.0
 
-    if (debug)print '(a)','enter '//trim(subname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)
     ! obtain vector pairs
     do n = 1,nflds
        if (trim(vars(n)%var_grid) == 'Cu' .or. trim(vars(n)%var_grid) == 'Bu_x') then
@@ -94,7 +94,7 @@ contains
        end if
     end do
 
-    if (debug)print '(a)','exit '//trim(subname)
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)
   end subroutine packarrays2d
 
   !----------------------------------------------------------
@@ -116,7 +116,7 @@ contains
 
     fields=0.0
 
-    if (debug)print '(a)','enter '//trim(subname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)
     ! obtain vector pairs
     do n = 1,dims(3)
        if (trim(vars(n)%var_grid) == 'Cu') then
@@ -142,7 +142,7 @@ contains
        end if
     end do
 
-    if (debug)print '(a)','exit '//trim(subname)
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)
   end subroutine packarrays3d
 
   !----------------------------------------------------------
@@ -164,14 +164,14 @@ contains
     character(len=240) :: wgtsfile
     character(len=20) :: subname = 'getvecpair2d'
 
-    if (debug)print '(a)','enter '//trim(subname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)
 
     wgtsfile = trim(wdir)//'tripole.mx025.'//vgrid1//'.to.Ct.bilinear.nc'
     call getfield(fname, vname1, dims=dims, field=vecpair(:,1), wgts=trim(wgtsfile))
-    if (debug)print '(a)','wgtsfile for 2d vector '//trim(vname1)//'   '//trim(wgtsfile)
+    if (debug)write(logunit,'(a)')'wgtsfile for 2d vector '//trim(vname1)//'   '//trim(wgtsfile)
     wgtsfile = trim(wdir)//'tripole.mx025.'//vgrid2//'.to.Ct.bilinear.nc'
     call getfield(fname, vname2, dims=dims, field=vecpair(:,2), wgts=trim(wgtsfile))
-    if (debug)print '(a)','wgtsfile for 2d vector '//trim(vname2)//'   '//trim(wgtsfile)
+    if (debug)write(logunit,'(a)')'wgtsfile for 2d vector '//trim(vname2)//'   '//trim(wgtsfile)
 
     urot = 0.0; vrot = 0.0
     do ii = 1,dims(1)*dims(2)
@@ -181,7 +181,7 @@ contains
     vecpair(:,1) = urot(:)
     vecpair(:,2) = vrot(:)
 
-    if (debug) print '(a)','exit '//trim(subname)
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)
   end subroutine getvecpair2d
 
   !----------------------------------------------------------
@@ -203,7 +203,7 @@ contains
     character(len=240) :: wgtsfile
     character(len=20) :: subname = 'getfield3d'
 
-    if (debug)print '(a)','enter '//trim(subname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)
 
     wgtsfile = trim(wdir)//'tripole.mx025.'//vgrid1//'.to.Ct.bilinear.nc'
     call getfield(fname, vname1, dims=dims, field=vecpair(:,:,1), wgts=trim(wgtsfile))
@@ -220,7 +220,7 @@ contains
        vecpair(:,k,2) = vrot(:)
     end do
 
-    if (debug) print '(a)','exit '//trim(subname)
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)
   end subroutine getvecpair3d
 
   !----------------------------------------------------------
@@ -240,7 +240,7 @@ contains
     real, allocatable :: atmp(:)
     character(len=20) :: subname = 'getfield2d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
 
     allocate(a2d(dims(1),dims(2))); a2d = 0.0
     allocate(atmp(dims(1)*dims(2))); atmp = 0.0
@@ -262,7 +262,7 @@ contains
        field = atmp
     end if
 
-    if (debug) print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
   end subroutine getfield2d
 
   !----------------------------------------------------------
@@ -282,7 +282,7 @@ contains
     real, allocatable :: atmp(:,:)
     character(len=20) :: subname = 'getfield3d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
 
     allocate(a3d(dims(1),dims(2),dims(3))); a3d = 0.0
     allocate(atmp(dims(1)*dims(2),dims(3))); atmp = 0.0
@@ -304,7 +304,7 @@ contains
        field = atmp
     end if
 
-    if (debug) print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
   end subroutine getfield3d
 
   !----------------------------------------------------------
@@ -324,7 +324,7 @@ contains
     real(kind=8), allocatable, dimension(:)    :: S
     character(len=20) :: subname = 'remap1d'
 
-    if (debug)print '(a)','enter '//trim(subname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)
 
     ! retrieve the weights
     rc = nf90_open(trim(fname), nf90_nowrite, ncid)
@@ -354,7 +354,7 @@ contains
        dst_field(ii) = dst_field(ii) + S(i)*real(src_field(jj),8)
     enddo
 
-    if (debug) print '(a)','exit '//trim(subname)
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)
   end subroutine remap1d
 
   !----------------------------------------------------------
@@ -375,7 +375,7 @@ contains
     real(kind=8),    allocatable, dimension(:) :: S
     character(len=20) :: subname = 'remap2d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' weights = '//trim(fname)
 
     ! retrieve the weights
     rc = nf90_open(trim(fname), nf90_nowrite, ncid)
@@ -405,7 +405,7 @@ contains
        dst_field(ii,:) = dst_field(ii,:) + S(i)*real(src_field(jj,:),8)
     enddo
 
-    if (debug) print '(a)','exit '//trim(subname)
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)
   end subroutine remap2d
 
   !----------------------------------------------------------
@@ -426,7 +426,7 @@ contains
     real(kind=8),    allocatable, dimension(:) :: S
     character(len=20) :: subname = 'remap3d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' weights = '//trim(fname)
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' weights = '//trim(fname)
 
     ! retrieve the weights
     rc = nf90_open(trim(fname), nf90_nowrite, ncid)
@@ -456,7 +456,7 @@ contains
        dst_field(ii,:,:) = dst_field(ii,:,:) + S(i)*real(src_field(jj,:,:),8)
     enddo
 
-    if (debug) print '(a)','exit '//trim(subname)
+    if (debug) write(logunit,'(a)')'exit '//trim(subname)
   end subroutine remap3d
 
   !----------------------------------------------------------
@@ -474,7 +474,7 @@ contains
     real, allocatable :: a3d(:,:,:)
     character(len=20) :: subname = 'dumpnc2d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
     allocate(a3d(dims(1),dims(2),nflds)); a3d = 0.0
 
     rc = nf90_create(trim(fname), nf90_clobber, ncid)
@@ -488,7 +488,7 @@ contains
     rc = nf90_put_var(ncid, varid, a3d)
     rc = nf90_close(ncid)
 
-    if (debug)print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
   end subroutine dumpnc2d
 
   !----------------------------------------------------------
@@ -506,7 +506,7 @@ contains
     real, allocatable :: a4d(:,:,:,:)
     character(len=20) :: subname = 'dumpnc3d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
     allocate(a4d(dims(1),dims(2),dims(3),nflds)); a4d = 0.0
 
     rc = nf90_create(trim(fname), nf90_clobber, ncid)
@@ -523,7 +523,7 @@ contains
     rc = nf90_put_var(ncid, varid, a4d)
     rc = nf90_close(ncid)
 
-    if (debug)print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
   end subroutine dumpnc3d
 
   !----------------------------------------------------------
@@ -540,7 +540,7 @@ contains
     real, allocatable :: a3d(:,:,:)
     character(len=20) :: subname = 'dumpnc3dk'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
     allocate(a3d(dims(1),dims(2),dims(3))); a3d = 0.0
 
     rc = nf90_create(trim(fname), nf90_clobber, ncid)
@@ -554,7 +554,7 @@ contains
     rc = nf90_put_var(ncid, varid, a3d)
     rc = nf90_close(ncid)
 
-    if (debug)print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
 
   end subroutine dumpnc3dk
 
@@ -572,7 +572,7 @@ contains
     real, allocatable :: a2d(:,:)
     character(len=20) :: subname = 'dumpnc1d'
 
-    if (debug)print '(a)','enter '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'enter '//trim(subname)//' variable '//vname
     allocate(a2d(dims(1),dims(2))); a2d = 0.0
 
     rc = nf90_create(trim(fname), nf90_clobber, ncid)
@@ -585,7 +585,7 @@ contains
     rc = nf90_put_var(ncid, varid, a2d)
     rc = nf90_close(ncid)
 
-    if (debug)print '(a)','exit '//trim(subname)//' variable '//vname
+    if (debug)write(logunit,'(a)')'exit '//trim(subname)//' variable '//vname
 
   end subroutine dumpnc1d
 
@@ -597,7 +597,7 @@ contains
     integer ,         intent(in) :: ierr
     character(len=*), intent(in) :: string
     if (ierr /= nf90_noerr) then
-      print '(a)', '*** ERROR ***: '//trim(string)//':'//trim(nf90_strerror(ierr))
+      write(logunit,'(a)') '*** ERROR ***: '//trim(string)//':'//trim(nf90_strerror(ierr))
       stop
     end if
   end subroutine handle_err
