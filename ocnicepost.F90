@@ -6,7 +6,7 @@ program ocnicepost
 
   implicit none
 
-  character(len= 20) :: fnml, ftype
+  character(len= 20) :: fname, ftype
   character(len=120) :: wgtsdir
   character(len=120) :: input_file, wgtsfile, output_file
 
@@ -55,12 +55,17 @@ program ocnicepost
 
   real    :: vfill
   integer :: nd, nxr, nyr
-  integer :: i,j,k,n,nn,nvalid,iounit
+  integer :: i,j,k,n,nn,nvalid,iounit,ierr
   integer :: rc,ncid,varid,dimid
   integer :: nbilin2d,nbilin3d,nconsd2d
   integer :: idimid,jdimid,kdimid,edimid,timid
   integer :: idx1,idx2,idx3
   logical :: do_ocnpost
+
+  ! csv
+  character(len=100) :: chead
+  character(len=10)  :: c1,c3,c4,c5,c6
+  integer :: i2
 
   namelist /ocnicepost_nml/ ftype, wgtsdir, debug
 
@@ -68,21 +73,55 @@ program ocnicepost
   ! read the name list
   ! --------------------------------------------------------
 
-  fnml = 'ocnicepost.nml'
-  inquire (file=trim(fnml), iostat=rc)
-  if (rc /= 0) then
-     write (6, '(3a)') 'Error: input file "', trim(fnml), '" does not exist.'
+  fname = 'ocnicepost.nml'
+  inquire (file=trim(fname), iostat=ierr)
+  if (ierr /= 0) then
+     write (6, '(3a)') 'Error: input file "', trim(fname), '" does not exist.'
      stop
   end if
 
   ! Open and read Namelist file.
-  open (action='read', file=trim(fnml), iostat=rc, newunit=iounit)
-  read (nml=ocnicepost_nml, iostat=rc, unit=iounit)
-  if (rc /= 0) then
+  open (action='read', file=trim(fname), iostat=ierr, newunit=iounit)
+  read (nml=ocnicepost_nml, iostat=ierr, unit=iounit)
+  if (ierr /= 0) then
      write (6, '(a)') 'Error: invalid Namelist format.'
   end if
   close (iounit)
 
+  ! Open and read list of variables
+  fname=trim(ftype)//'.csv'
+  open(newunit=iounit, file=trim(fname), status='old', iostat=ierr)
+  if (ierr /= 0) then
+     write (6, '(3a)') 'Error: input file "', trim(fname), '" does not exist.'
+     stop
+  end if
+
+  read(iounit,*)chead
+  nn=0
+  do n = 1,maxvars
+     read(iounit,*,iostat=ierr)c1,i2,c3,c4,c5,c6
+     if (ierr .ne. 0) exit
+     if (len_trim(c1) > 0) then
+        nn = nn+1
+        outvars(nn)%input_var_name = trim(c1)
+        outvars(nn)%var_dimen = i2
+        outvars(nn)%var_grid = trim(c3)
+        outvars(nn)%var_remapmethod = trim(c4)
+        outvars(nn)%var_pair = trim(c5)
+        outvars(nn)%var_pair_grid = trim(c6)
+     end if
+  end do
+  close(iounit)
+
+
+
+  do n = 1,nn
+     print '(a10,i5,4a10)',trim(outvars(n)%input_var_name)//',',&
+          outvars(n)%var_dimen,','//trim(outvars(n)%var_grid),','//trim(outvars(n)%var_remapmethod), &
+          ','//trim(outvars(n)%var_pair),','//trim(outvars(n)%var_pair_grid)
+  end do
+
+#ifdef test
   ! initialize the source file type and variables
   if (trim(ftype) == 'ocean') then
      do_ocnpost = .true.
@@ -95,6 +134,13 @@ program ocnicepost
 
   open(newunit=logunit, file=trim(ftype)//'.post.log',form='formatted')
   if (debug) write(logunit, '(a)')'input file: '//trim(input_file)
+
+
+  do n = 1,maxvars
+     print '(a10,i5,4a10)',trim(outvars(n)%input_var_name)//',',&
+          outvars(n)%var_dimen,','//trim(outvars(n)%var_grid),','//trim(outvars(n)%var_remapmethod), &
+          ','//trim(outvars(n)%var_pair),','//trim(outvars(n)%var_pair_grid)
+  end do
 
   ! --------------------------------------------------------
   ! read the source file and obtain the units and long name,
@@ -573,5 +619,5 @@ program ocnicepost
 
   end do !nd
   write(logunit,'(a)')'all done!'
-
+#endif
 end program ocnicepost
