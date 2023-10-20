@@ -1,5 +1,11 @@
-# ocnpost90
-ncl ocnpost converted to fortran
+Two control files determine the code behaviour. A name list file ``ocnicepost.nml`` is used
+to set the input file type (ice or ocean), the location of the ESMF weights, the dimensions
+of the source and destination grids, the source variable to used to create an interpolation
+mask and the required rotation variables and a flag to produce debugging output.
+
+The list of variables to be remapped is expected in either ``ocean.csv`` or ``ice.csv``. Each
+variable is specified by name, dimensionality, the required mapping method. For vectors, the
+associated vector and it's grid is also listed.# ocnpost90
 
 This program will remap MOM6 ocean or CICE6 ice output on the tripole grid to a set of
 rectilinear grids using pre-computed ESMF weights to remap the chose fields to the
@@ -28,14 +34,14 @@ center grid points by averaging the four surrounding B grid points. MOM6 derives
 angle at the center directly from the latitude and longitude of the center grid points. The
 angles are therefore not identical between the two grids.
 
-Two control files determine the code behaviour. A name list file ocnicepost.nml is used
+Two control files determine the code behaviour. A name list file ``ocnicepost.nml`` is used
 to set the input file type (ice or ocean), the location of the ESMF weights, the dimensions
 of the source and destination grids, the source variable to used to create an interpolation
 mask and the required rotation variables and a flag to produce debugging output.
 
-The list of variables to be remapped is expected in either ocean.csv or ice.csv. Each variable
-is specified by name, dimensionality, the required mapping method. For vectors, the associated
-vector and it's grid is also listed.
+The list of variables to be remapped is expected in either ``ocean.csv`` or ``ice.csv``. Each
+variable is specified by name, dimensionality, the required mapping method. For vectors, the
+associated vector and it's grid is also listed.
 
 A interpolation mask in either 2 or 3 dimensions is created by bilinearly mapping an array of 0s
 and 1s (denoting valid source points) to the destination grid. This interpolation mask is used to
